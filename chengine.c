@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 // Define bitboard data type
 #define U64 unsigned long long
@@ -59,6 +60,8 @@ enum { white, black , both};
 
 // Bishop and rook
 enum { rook, bishop };
+
+
 
 // Castling  bits binary representation
 enum { wk = 1, wq = 2, bk = 4, bq = 8 };
