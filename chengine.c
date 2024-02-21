@@ -4,41 +4,12 @@
 // Define bitboard data type
 #define U64 unsigned long long
 
-// Set/get/pop macros
-#define set_bit(bitboard, square) (bitboard |= (1ULL << square))
-#define get_bit(bitboard, square) (bitboard & (1ULL << square))
-#define pop_bit(bitboard, square) (get_bit(bitboard, square) ? bitboard ^= (1ULL << square) : 0)
-
-// Count bits within a bitboard
-static inline int count_bits(U64 bitboard) {
-    // Bit counter
-    int count = 0;
-
-    // Consecutively reset least significant 1st bit
-    while (bitboard) {
-        // Increment count
-        count++;
-
-        // Reset least significant 1st bit
-        bitboard &= bitboard - 1;
-    }
-
-    // Return the count
-    return count;
-}
-
-// Get least significant 1st bit index
-static inline int get_ls1b_index(U64 bitboard) {
-    // Make sure bitboard is not 0
-    if (bitboard) {
-        // Count trailing bits before LS1B
-        return count_bits((bitboard & -bitboard) - 1);
-    }
-    else {
-        // Return illegal index
-        return -1;
-    }
-}
+// FEN dedug positions
+#define empty_board "8/8/8/8/8/8/8/8 w - - "
+#define start_position "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 "
+#define tricky_position "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 "
+#define killer_position "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1"
+#define cmk_position "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9 "
 
 // Board squares
 enum {
@@ -61,9 +32,7 @@ enum { white, black , both};
 // Bishop and rook
 enum { rook, bishop };
 
-
-
-// Castling  bits binary representation
+// Castling rights binary encoding
 enum { wk = 1, wq = 2, bk = 4, bq = 8 };
 
 // Convert squares to coordinates
@@ -112,10 +81,10 @@ U64 bitboards[12];
 U64 occupancies[3];
 
 // Side to move
-int side = -1;
+int side;
 
-// Entpassant square
-int entpassant = no_sq;
+// Enpassant square
+int enpassant = no_sq;
 
 // Castling rights
 int castle;
@@ -164,8 +133,55 @@ U64 generate_magic_number() {
     return get_random_U64_number() & get_random_U64_number() & get_random_U64_number();
 }
 
+/* ========================================================================= */
+/* ========================= Bit manipulations ============================= */
+/* ========================================================================= */
+
+// Set/get/pop macros
+#define set_bit(bitboard, square) (bitboard |= (1ULL << square))
+#define get_bit(bitboard, square) (bitboard & (1ULL << square))
+#define pop_bit(bitboard, square) (get_bit(bitboard, square) ? bitboard ^= (1ULL << square) : 0)
+
+// Count bits within a bitboard
+static inline int count_bits(U64 bitboard) {
+    // Bit counter
+    int count = 0;
+
+    // Consecutively reset least significant 1st bit
+    while (bitboard) {
+        // Increment count
+        count++;
+
+        // Reset least significant 1st bit
+        bitboard &= bitboard - 1;
+    }
+
+    // Return the count
+    return count;
+}
+
+// Get least significant 1st bit index
+static inline int get_ls1b_index(U64 bitboard) {
+    // Make sure bitboard is not 0
+    if (bitboard) {
+        // Count trailing bits before LS1B
+        return count_bits((bitboard & -bitboard) - 1);
+    }
+    else {
+        // Return illegal index
+        return -1;
+    }
+}
+
+/* ========================================================================= */
+/* =========================== Input & Output ============================== */
+/* ========================================================================= */
+
 // Function: print bibtboard
 void print_bitboard(U64 bitboard) {
+    // Print offset
+    printf("\n");
+
     // Loop over board ranks
     for (int rank = 0; rank < 8; rank++) {
         // Loop over board files
@@ -191,6 +207,181 @@ void print_bitboard(U64 bitboard) {
 
     // Print bitboard as unsigned decimal number
     printf("     Bitboard: %llud\n\n", bitboard);
+}
+
+// Print board
+void print_board() {
+    // Print offset
+    printf("\n");
+
+    // Loop over board ranks
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            // Init square
+            int square = rank * 8 + file;
+
+            // Print ranks
+            if (!file)
+                printf(" %d ", 8 - rank);
+
+            // Define piece variable
+            int piece = -1;
+
+            // Loop over all piece bitboards
+            for (int bb_piece = P; bb_piece <= k; bb_piece++) {
+                // If there is a piece on current square
+                if (get_bit(bitboards[bb_piece], square))
+                    // Get piece code
+                    piece = bb_piece;
+            }
+
+            // Print different piece set depending on OS
+            #ifdef WIN64
+                printf(" %c", (piece == -1) ? '.' : ascii_pieces[piece]);
+            #else
+                printf(" %s", (piece == -1) ? ".": unicode_pieces[piece]);
+            #endif
+        }
+
+        // Print new line every rank
+        printf("\n");
+    }
+    // Print board files
+    printf("\n     a b c d e f g h\n\n");
+    
+    // Print side to move
+    printf("     Side:     %s\n", !side ? "white" : "black");
+    
+    // Print enpassant square
+    printf("     Enpassant:   %s\n", (enpassant != no_sq) ? square_to_coordinates[enpassant] : "no");
+    
+    // Print castling rights
+    printf("     Castling:  %c%c%c%c\n\n", (castle & wk) ? 'K' : '-',
+                                           (castle & wq) ? 'Q' : '-',
+                                           (castle & bk) ? 'k' : '-',
+                                           (castle & bq) ? 'q' : '-');
+}
+
+// Parse FEN string
+void parse_fen(char *fen) {
+    // Reset board position (bitboards)
+    memset(bitboards, 0ULL, sizeof(bitboards));
+
+    // Reset occupancies (bitboards)
+    memset(occupancies, 0ULL, sizeof(occupancies));
+
+    // Reset game state variables
+    side = 0;
+    enpassant = no_sq;
+    castle = 0;
+
+    // Loop over board ranks
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            // Init current square
+            int square = rank * 8 + file;
+
+            // Match ascii pieces within FEN string
+            if ((*fen >= 'a' && *fen <= 'z') || (*fen >= 'A' && *fen <= 'Z')) {
+                // Init piece type
+                int piece = char_pieces[*fen];
+
+                // Set piece on corresponding bitboard
+                set_bit(bitboards[piece], square);
+
+                // Increment pointer to FEN string
+                *fen++;
+            }
+
+            // Match empty square numbers within FEN string
+            if (*fen >= '0' && *fen <= '9') {
+                // Init offset (convert char 0 to int 0)
+                int offset = *fen - '0';
+
+                // Define piece variable
+                int piece = -1;
+
+                // Loop over all piece bitboards
+                for (int bb_piece = P; bb_piece <= k; bb_piece++) {
+                    // If there is a piece on current square
+                    if (get_bit(bitboards[bb_piece], square))
+                        // Get piece code
+                        piece = bb_piece;
+                }
+
+                // On empty current square
+                if (piece == -1)
+                    // Decrement file
+                    file--;
+
+                // Adjust file counter
+                file += offset;
+
+                // Increment pointer to FEN string
+                *fen++;
+            }
+
+            // Match rank separator
+            if (*fen == '/')
+                // Increment pointer to FEN string
+                *fen++;
+        }
+    }
+
+    // Got to parsing side to move (increment pointer to FEN string)
+    *fen++;
+
+    // Parse side to move
+    (*fen == 'w') ? (side == white) : (side = black);
+
+    // Go to parsing castling rights
+    fen += 2;
+
+    // Parse castling rights
+    while (*fen != ' ') {
+        switch (*fen) {
+            case 'K': castle |= wk; break;
+            case 'Q': castle |= wq; break;
+            case 'k': castle |= bk; break;
+            case 'q': castle |= bq; break;
+            case '-': break;
+        }
+
+        // Increment pointer to FEN string
+        *fen++;
+    }
+
+    // Got to parsing enpassant square (increment pointer to FEN string)
+    *fen++;
+
+    // Parse enpassant square
+    if (*fen != '-') {
+        // Parse enpassant file & rank
+        int file = fen[0] - 'a';
+        int rank = 8 - (fen[1] - '0');
+
+        // Init enpassant square
+        enpassant = rank * 8 + file;
+    // No enpassant square
+    } else {
+        enpassant = no_sq;
+    }
+
+    // Loop over white pieces bitboards
+    for (int piece = P; piece <= K; piece++) {
+        // Populate white occupancy bitboard
+        occupancies[white] |= bitboards[piece];
+    }
+
+    // Loop over black pieces bitboards
+    for (int piece = p; piece <= k; piece++) {
+        // Populate white occupancy bitboard
+        occupancies[black] |= bitboards[piece];
+    }
+
+    // Init all occupancies
+    occupancies[both] |= occupancies[white];
+    occupancies[both] |= occupancies[black];
 }
 
 /* ========================================================================= */
@@ -705,11 +896,6 @@ void init_magic_numbers() {
 
 // Init all variables
 void init_all() {
-    // Init magic numbers
-    //init_magic_numbers();
-
-    // Init leaper pieces attacks
-    init_leapers_attacks();
 
 }
 
@@ -721,6 +907,9 @@ void init_all() {
 int main() {
     // Init all
     init_all();
+
+    // Print chess board
+    print_board();
     
 
     return 0;
