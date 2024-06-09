@@ -277,6 +277,8 @@ void parse_fen(char *fen) {
 
     // Loop over board ranks
     for (int rank = 0; rank < 8; rank++) {
+
+        // Loop over board files
         for (int file = 0; file < 8; file++) {
             // Init current square
             int square = rank * 8 + file;
@@ -290,7 +292,7 @@ void parse_fen(char *fen) {
                 set_bit(bitboards[piece], square);
 
                 // Increment pointer to FEN string
-                *fen++;
+                fen++;
             }
 
             // Match empty square numbers within FEN string
@@ -318,18 +320,18 @@ void parse_fen(char *fen) {
                 file += offset;
 
                 // Increment pointer to FEN string
-                *fen++;
+                fen++;
             }
 
             // Match rank separator
             if (*fen == '/')
                 // Increment pointer to FEN string
-                *fen++;
+                fen++;
         }
     }
 
     // Got to parsing side to move (increment pointer to FEN string)
-    *fen++;
+    fen++;
 
     // Parse side to move
     (*fen == 'w') ? (side == white) : (side = black);
@@ -348,11 +350,11 @@ void parse_fen(char *fen) {
         }
 
         // Increment pointer to FEN string
-        *fen++;
+        fen++;
     }
 
     // Got to parsing enpassant square (increment pointer to FEN string)
-    *fen++;
+    fen++;
 
     // Parse enpassant square
     if (*fen != '-') {
@@ -1000,6 +1002,102 @@ static inline U64 get_queen_attacks(int square, U64 occupancy) {
     return queen_attacks;
 }
 
+/* ================================================================================ */
+/* ============================== Move generator ================================== */
+/* ================================================================================ */
+
+// Is square current given attacked by the current given side
+static inline int is_square_attacked(int square, int side)
+{
+    // attacked by white pawns
+    if ((side == white) && (pawn_attacks[black][square] & bitboards[P])) return 1;
+    
+    // attacked by black pawns
+    if ((side == black) && (pawn_attacks[white][square] & bitboards[p])) return 1;
+    
+    // attacked by knights
+    if (knight_attacks[square] & ((side == white) ? bitboards[N] : bitboards[n])) return 1;
+    
+    // attacked by bishops
+    if (get_bishop_attacks(square, occupancies[both]) & ((side == white) ? bitboards[B] : bitboards[b])) return 1;
+
+    // attacked by rooks
+    if (get_rook_attacks(square, occupancies[both]) & ((side == white) ? bitboards[R] : bitboards[r])) return 1;    
+
+    // attacked by bishops
+    if (get_queen_attacks(square, occupancies[both]) & ((side == white) ? bitboards[Q] : bitboards[q])) return 1;
+    
+    // attacked by kings
+    if (king_attacks[square] & ((side == white) ? bitboards[K] : bitboards[k])) return 1;
+
+    // by default return false
+    return 0;
+}
+
+// Print attacked squares
+void print_attacked_squares(int side)
+{
+    printf("\n");
+    
+    // loop over board ranks
+    for (int rank = 0; rank < 8; rank++)
+    {
+        // loop over board files
+        for (int file = 0; file < 8; file++)
+        {
+            // init square
+            int square = rank * 8 + file;
+            
+            // print ranks
+            if (!file)
+                printf("  %d ", 8 - rank);
+            
+            // check whether current square is attacked or not
+            printf(" %d", is_square_attacked(square, side) ? 1 : 0);
+        }
+        
+        // print new line every rank
+        printf("\n");
+    }
+    
+    // print files
+    printf("\n     a b c d e f g h\n\n");
+}
+
+// Generate all moves
+static inline void generate_moves() {
+    
+    // Define source & target squares
+    int source_square, target_square;
+
+    // Define current piece's bitboard copy & it's attacks
+    U64 bitboard, attacks;
+
+    // Loop over all the bitboards
+    for (int piece = P; piece <= k; piece++) {
+        // Init piece bitboard copy
+        bitboard = bitboards[piece];
+
+        // Generate white pawns & white king castling moves
+        if (side == white) {
+
+        }
+
+        // Generate black pawns & black king castling moves
+
+        //Generate knight moves
+
+        //Generate bishop moves
+
+        //Generate rook moves
+
+        //Generate queen moves
+
+        //Generate king moves
+
+    }
+}
+
 /* ========================================================================== */
 /* ============================== Init all ================================== */
 /* ========================================================================== */
@@ -1009,7 +1107,6 @@ void init_all() {
 
 }
 
-
 /* ====================================================================== */
 /* ============================== Main ================================== */
 /* ====================================================================== */
@@ -1017,10 +1114,13 @@ void init_all() {
 int main() {
     // Init all
     init_all();
-
-    // Print chess board
-    print_board();
     
+    // Parse custom FEN string
+    parse_fen(tricky_position);
+    print_board();
+
+    // print all attacked squares on the chess board
+    print_attacked_squares(black);
 
     return 0;
 }
